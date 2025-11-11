@@ -3,34 +3,66 @@ import { CheckCircleIcon } from '@heroicons/react/24/solid';
 import { motion } from 'framer-motion';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Swal from 'sweetalert2';
+
+// API constants
+const API_BASE = 'http://localhost:5092/api';
+const CATEGORY_ENDPOINT = `${API_BASE}/Categories`;
+
+// Helper functions
+async function safeParseJson(res: Response): Promise<any> {
+  try {
+    const text = await res.text();
+    if (!text || text.trim() === '') return null;
+    try {
+      return JSON.parse(text);
+    } catch {
+      const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 10000, signal?: AbortSignal): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  function onAbort() { controller.abort(); }
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+  }
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+    if (signal) signal.removeEventListener('abort', onAbort as any);
+  }
+}
 
 export default function AddCategory() {
   const [name, setName] = useState("");
-  const [createdBy, setCreatedBy] = useState("");
-  const [kilogram, setKilogram] = useState("");
-  const [active, setActive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
   const router = useRouter();
+  const activeController = useRef<AbortController | null>(null);
 
   const validate = () => {
     const errors: {[key: string]: string} = {};
     if (!name.trim()) errors.name = "Category name is required.";
     else if (name.length < 2) errors.name = "Name must be at least 2 characters.";
-    if (!createdBy.trim()) errors.createdBy = "Created By is required.";
-    if (!kilogram.trim()) errors.kilogram = "Weight is required.";
-    else if (!/^\d+(\.\d+)?\s*(kg)?$/i.test(kilogram.trim())) errors.kilogram = "Enter a valid weight (e.g. 10kg, 4.5kg, 10, or 4.5).";
     return errors;
   };
 
   const handleReset = () => {
     setName("");
-    setCreatedBy("");
-    setKilogram("");
-    setActive(false);
     setError(null);
     setSuccess(false);
     setFieldErrors({});
@@ -43,20 +75,67 @@ export default function AddCategory() {
     const errors = validate();
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
+    
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5119/api/Categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, createdBy, kilogram, active }),
-      });
-      if (!res.ok) throw new Error("Failed to add category");
-      setSuccess(true);
-      setTimeout(() => router.push("/category/list"), 1200);
+      if (activeController.current) activeController.current.abort();
+      const controller = new AbortController();
+      activeController.current = controller;
+
+      // Try multiple payload formats for API compatibility
+      const payloads = [
+        { name },
+        { Name: name },
+        { categoryName: name },
+      ];
+
+      let lastError: any = null;
+      for (const payload of payloads) {
+        try {
+          const res = await fetchWithTimeout(
+            CATEGORY_ENDPOINT,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: 'application/json' },
+              body: JSON.stringify(payload),
+            },
+            10000,
+            controller.signal
+          );
+
+          if (res.ok) {
+            Swal.fire({
+              title: 'Success!',
+              text: 'Category created successfully.',
+              icon: 'success',
+              confirmButtonColor: '#3085d6',
+              confirmButtonText: 'OK'
+            });
+            setSuccess(true);
+            setTimeout(() => router.push("/category/list"), 1200);
+            return;
+          } else {
+            const data = await safeParseJson(res);
+            lastError = data?.message || data?.error || data?.title || `HTTP ${res.status}`;
+          }
+        } catch (err: any) {
+          if (err?.name !== 'AbortError') {
+            lastError = err?.message || 'Network error';
+          }
+        }
+      }
+      throw new Error(lastError || 'Failed to add category');
     } catch (err: any) {
-      setError(err.message || "Failed to add category");
+      setError(err?.message || "Failed to add category");
+      Swal.fire({
+        title: 'Error',
+        text: err?.message || 'Failed to add category',
+        icon: 'error',
+        confirmButtonColor: '#d33'
+      });
     } finally {
       setLoading(false);
+      activeController.current = null;
     }
   };
 
@@ -93,49 +172,6 @@ export default function AddCategory() {
                       minLength={2}
                     />
                     {fieldErrors.name && <span className="text-red-500 text-sm">{fieldErrors.name}</span>}
-                  </td>
-                </tr>
-                <tr className="flex flex-col sm:table-row">
-                  <td className="py-3 px-3 font-semibold text-gray-600">Created By</td>
-                  <td className="py-3 px-3 flex flex-col items-start gap-2 w-full">
-                    <input
-                      type="text"
-                      className={`w-full border ${fieldErrors.createdBy ? 'border-red-500' : 'border-gray-300'} rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-black text-base`}
-                      placeholder="Creator's name"
-                      value={createdBy}
-                      onChange={(e) => setCreatedBy(e.target.value)}
-                      required
-                    />
-                    {fieldErrors.createdBy && <span className="text-red-500 text-sm">{fieldErrors.createdBy}</span>}
-                  </td>
-                </tr>
-                <tr className="flex flex-col sm:table-row">
-                  <td className="py-3 px-3 font-semibold text-gray-600">Weight (Kilogram)</td>
-                  <td className="py-3 px-3 flex flex-col items-start gap-2 w-full">
-                    <div className="flex w-full items-center gap-2">
-                      <input
-                        type="text"
-                        className={`w-full border ${fieldErrors.kilogram ? 'border-red-500' : 'border-gray-300'} rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-black text-base`}
-                        placeholder="e.g. 10kg"
-                        value={kilogram}
-                        onChange={(e) => setKilogram(e.target.value)}
-                        required
-                      />
-                      <span className="bg-gray-200 text-gray-600 px-4 py-2 rounded-r text-base">kg</span>
-                    </div>
-                    {fieldErrors.kilogram && <span className="text-red-500 text-sm">{fieldErrors.kilogram}</span>}
-                  </td>
-                </tr>
-                <tr className="flex flex-col sm:table-row">
-                  <td className="py-3 px-3 font-semibold text-gray-600">Status</td>
-                  <td className="py-3 px-3 flex items-center gap-2 w-full">
-                    <input
-                      type="checkbox"
-                      checked={active}
-                      onChange={(e) => setActive(e.target.checked)}
-                      className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <span className="text-gray-700 text-base">Active</span>
                   </td>
                 </tr>
               </tbody>

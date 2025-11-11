@@ -1,14 +1,14 @@
 "use client";
 import {
-  ChevronDownIcon,
-  ChevronUpDownIcon,
-  ChevronUpIcon,
-  EllipsisHorizontalIcon,
-  MagnifyingGlassIcon,
-  PencilSquareIcon,
-  PlusIcon,
-  TagIcon,
-  TrashIcon
+    ChevronDownIcon,
+    ChevronUpDownIcon,
+    ChevronUpIcon,
+    EllipsisHorizontalIcon,
+    MagnifyingGlassIcon,
+    PencilSquareIcon,
+    PlusIcon,
+    TrashIcon,
+    UserIcon
 } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -17,11 +17,12 @@ import Swal from 'sweetalert2';
 
 // API constants
 const API_BASE = 'http://localhost:5092/api';
-const CATEGORY_ENDPOINT = `${API_BASE}/Categories`;
+const TEMPORARY_USER_ENDPOINT = `${API_BASE}/TemporaryUser`;
 
-interface Category {
+interface TemporaryUser {
   id: string;
   name: string;
+  description: string;
 }
 
 // Helper functions for robust data fetching
@@ -76,17 +77,17 @@ function extractList(payload: any): any[] {
   if (Array.isArray(payload?.items)) return payload.items;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.result)) return payload.result;
-  if (Array.isArray(payload?.categories)) return payload.categories;
-  if (Array.isArray(payload?.categoryList)) return payload.categoryList;
+  if (Array.isArray(payload?.temporaryUsers)) return payload.temporaryUsers;
+  if (Array.isArray(payload?.temporaryUserList)) return payload.temporaryUserList;
   return [];
 }
 
-export default function CategoryList() {
-  const [categories, setCategories] = useState<Category[]>([]);
+export default function TemporaryUserList() {
+  const [temporaryUsers, setTemporaryUsers] = useState<TemporaryUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<keyof Category>('name');
+  const [sortBy, setSortBy] = useState<keyof TemporaryUser>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -96,8 +97,8 @@ export default function CategoryList() {
 
   const activeController = useRef<AbortController | null>(null);
 
-  // Fetch categories with server-side pagination - enhanced for robustness
-  const fetchCategories = async (pageNum = 1) => {
+  // Fetch temporary users with server-side pagination - enhanced for robustness
+  const fetchTemporaryUsers = async (pageNum = 1) => {
     setLoading(true);
     setError(null);
     
@@ -109,12 +110,12 @@ export default function CategoryList() {
 
       // Try multiple URL patterns for better compatibility
       const urlPatterns = [
-        `${CATEGORY_ENDPOINT}?page=${pageNum}&pageSize=${pageSize}`,
-        `${CATEGORY_ENDPOINT}?pageNumber=${pageNum}&pageSize=${pageSize}`,
-        `${CATEGORY_ENDPOINT}?page=${pageNum}`,
-        `${CATEGORY_ENDPOINT}?skip=${(pageNum - 1) * pageSize}&take=${pageSize}`,
-        `${CATEGORY_ENDPOINT}?offset=${(pageNum - 1) * pageSize}&limit=${pageSize}`,
-        `${CATEGORY_ENDPOINT}`,
+        `${TEMPORARY_USER_ENDPOINT}?page=${pageNum}&pageSize=${pageSize}`,
+        `${TEMPORARY_USER_ENDPOINT}?pageNumber=${pageNum}&pageSize=${pageSize}`,
+        `${TEMPORARY_USER_ENDPOINT}?page=${pageNum}`,
+        `${TEMPORARY_USER_ENDPOINT}?skip=${(pageNum - 1) * pageSize}&take=${pageSize}`,
+        `${TEMPORARY_USER_ENDPOINT}?offset=${(pageNum - 1) * pageSize}&limit=${pageSize}`,
+        `${TEMPORARY_USER_ENDPOINT}`,
       ];
 
       let list: any[] = [];
@@ -161,11 +162,12 @@ export default function CategoryList() {
         }
       }
 
-      // Normalize categories
+      // Normalize temporary users
       const normalized = list.map((item: any) => ({
-        id: String(item?.id ?? item?.ID ?? item?.categoryId ?? ''),
-        name: String(item?.name ?? item?.Name ?? item?.categoryName ?? ''),
-      })).filter(cat => cat.id);
+        id: String(item?.id ?? item?.ID ?? item?.temporaryUserId ?? ''),
+        name: String(item?.name ?? item?.Name ?? item?.temporaryUserName ?? ''),
+        description: String(item?.description ?? item?.Description ?? item?.desc ?? ''),
+      })).filter(user => user.id);
 
       // Calculate pagination from headers or data
       let computedPages = 1;
@@ -193,18 +195,18 @@ export default function CategoryList() {
       }
 
       if (normalized.length === 0 && !controller.signal.aborted) {
-        setError("No categories found. Please check your connection and try again.");
+        setError("No temporary users found. Please check your connection and try again.");
       } else {
         setError(null);
       }
 
-      setCategories(normalized);
+      setTemporaryUsers(normalized);
       setTotalPages(Math.max(1, computedPages));
       
     } catch (e: any) {
       if (e?.name !== 'AbortError') {
-        console.error('Fetch categories error:', e);
-        setError(e?.message || "Failed to fetch categories. Please try again.");
+        console.error('Fetch temporary users error:', e);
+        setError(e?.message || "Failed to fetch temporary users. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -213,7 +215,7 @@ export default function CategoryList() {
   };
 
   useEffect(() => {
-    fetchCategories(page);
+    fetchTemporaryUsers(page);
     return () => {
       if (activeController.current) activeController.current.abort();
     };
@@ -221,8 +223,9 @@ export default function CategoryList() {
   }, [page, pageSize]);
 
   // Filter (client-side, after server-side pagination)
-  const filtered = categories.filter(cat =>
-    cat.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = temporaryUsers.filter(user =>
+    user.name.toLowerCase().includes(search.toLowerCase()) ||
+    user.description.toLowerCase().includes(search.toLowerCase())
   );
 
   // Sort (client-side, after server-side pagination)
@@ -238,7 +241,7 @@ export default function CategoryList() {
     return 0;
   });
 
-  const handleSort = (col: keyof Category) => {
+  const handleSort = (col: keyof TemporaryUser) => {
     if (sortBy === col) {
       setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
     } else {
@@ -276,8 +279,8 @@ export default function CategoryList() {
       try {
         // Try multiple delete endpoint patterns
         const deletePatterns = [
-          `${CATEGORY_ENDPOINT}/${id}`,
-          `${CATEGORY_ENDPOINT}?id=${id}`,
+          `${TEMPORARY_USER_ENDPOINT}/${id}`,
+          `${TEMPORARY_USER_ENDPOINT}?id=${id}`,
         ];
         
         let deleted = false;
@@ -302,13 +305,13 @@ export default function CategoryList() {
         }
         
         if (!deleted) {
-          throw new Error("Failed to delete category");
+          throw new Error("Failed to delete temporary user");
         }
         
-        Swal.fire("Deleted!", "The category has been deleted.", "success");
-        fetchCategories(page);
+        Swal.fire("Deleted!", "The temporary user has been deleted.", "success");
+        fetchTemporaryUsers(page);
       } catch (err: any) {
-        Swal.fire("Error", err.message || "Failed to delete category", "error");
+        Swal.fire("Error", err.message || "Failed to delete temporary user", "error");
       }
     }
   };
@@ -323,11 +326,11 @@ export default function CategoryList() {
       >
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white mb-2">Categories ({totalCount || sorted.length})</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Temporary Users ({totalCount || sorted.length})</h1>
           <nav className="flex items-center gap-2 text-sm text-gray-400">
             <Link href="/" className="hover:text-white transition">Home</Link>
             <span>/</span>
-            <span className="text-white">Categories</span>
+            <span className="text-white">Temporary Users</span>
           </nav>
         </div>
 
@@ -339,7 +342,7 @@ export default function CategoryList() {
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search categories..."
+                placeholder="Search temporary users..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 className="bg-gray-700 text-white border border-gray-600 rounded-lg pl-10 pr-4 py-2 w-full lg:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -348,7 +351,7 @@ export default function CategoryList() {
 
             {/* Add Button - Right Side */}
             <div className="flex items-center justify-end">
-              <Link href="/category/add">
+              <Link href="/temporary-user/add">
                 <button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg transition-colors flex items-center justify-center">
                   <PlusIcon className="h-5 w-5" />
                 </button>
@@ -363,7 +366,7 @@ export default function CategoryList() {
           ) : error ? (
             <div className="text-center py-20 text-red-400">{error}</div>
           ) : sorted.length === 0 ? (
-            <div className="text-center py-20 text-gray-400">No categories found.</div>
+            <div className="text-center py-20 text-gray-400">No temporary users found.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -371,32 +374,43 @@ export default function CategoryList() {
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider cursor-pointer hover:text-white" onClick={() => handleSort('name')}>
                       <div className="flex items-center gap-2">
-                        CATEGORY NAME
+                        NAME
                         {sortBy === 'name' ? (sortDir === 'asc' ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : <ChevronUpDownIcon className="h-4 w-4 text-gray-400" />}
+                      </div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider cursor-pointer hover:text-white" onClick={() => handleSort('description')}>
+                      <div className="flex items-center gap-2">
+                        DESCRIPTION
+                        {sortBy === 'description' ? (sortDir === 'asc' ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : <ChevronUpDownIcon className="h-4 w-4 text-gray-400" />}
                       </div>
                     </th>
                     <th className="px-6 py-4 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
-                  {sorted.map((cat) => (
+                  {sorted.map((user) => (
                     <tr
-                      key={cat.id}
+                      key={user.id}
                       className="hover:bg-gray-700/50 transition-colors"
                     >
                       {/* Name with Icon */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div className="flex-shrink-0">
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
-                              <TagIcon className="h-5 w-5 text-white" />
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+                              <UserIcon className="h-5 w-5 text-white" />
                             </div>
                           </div>
                           <div>
-                            <div className="text-sm font-semibold text-white">{cat.name || 'Unnamed'}</div>
-                            <div className="text-xs text-gray-400">Category</div>
+                            <div className="text-sm font-semibold text-white">{user.name || 'Unnamed'}</div>
+                            <div className="text-xs text-gray-400">Temporary User</div>
                           </div>
                         </div>
+                      </td>
+
+                      {/* Description */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-300">{user.description || '-'}</div>
                       </td>
 
                       {/* Actions Menu */}
@@ -405,18 +419,18 @@ export default function CategoryList() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              toggleActionMenu(cat.id);
+                              toggleActionMenu(user.id);
                             }}
                             className="p-2 rounded-lg hover:bg-gray-700 transition-colors"
                           >
                             <EllipsisHorizontalIcon className="h-5 w-5 text-gray-400 hover:text-white" />
                           </button>
 
-                          {actionMenuOpen === cat.id && (
+                          {actionMenuOpen === user.id && (
                             <div className="absolute right-0 mt-2 w-48 bg-gray-700 rounded-lg shadow-xl border border-gray-600 z-10">
                               <div className="py-1">
                                 <Link
-                                  href={`/category/update/${cat.id}`}
+                                  href={`/temporary-user/update/${user.id}`}
                                   className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white transition-colors"
                                   onClick={() => setActionMenuOpen(null)}
                                 >
@@ -427,7 +441,7 @@ export default function CategoryList() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setActionMenuOpen(null);
-                                    handleDelete(cat.id);
+                                    handleDelete(user.id);
                                   }}
                                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-gray-600 hover:text-red-300 transition-colors"
                                 >
@@ -517,4 +531,5 @@ export default function CategoryList() {
       </motion.div>
     </div>
   );
-} 
+}
+

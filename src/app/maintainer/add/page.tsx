@@ -1,5 +1,5 @@
 "use client";
-import { CheckCircleIcon, EnvelopeIcon, PhoneIcon, UserIcon, WrenchScrewdriverIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, EnvelopeIcon, PhoneIcon, UserIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,9 +10,7 @@ export default function AddMaintainer() {
   const [form, setForm] = useState({
     name: "",
     email: "",
-    phoneNumber: "",
-    city: "",
-    active: false
+    phone: ""
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -23,8 +21,7 @@ export default function AddMaintainer() {
     if (!form.name.trim()) errors.name = "Maintainer name is required.";
     if (!form.email.trim()) errors.email = "Email is required.";
     else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) errors.email = "Invalid email format.";
-    if (!form.phoneNumber.trim()) errors.phoneNumber = "Phone number is required.";
-    if (!form.city.trim()) errors.city = "City is required.";
+    if (!form.phone.trim()) errors.phone = "Phone number is required.";
     return errors;
   };
 
@@ -38,7 +35,7 @@ export default function AddMaintainer() {
   };
 
   const handleReset = () => {
-    setForm({ name: "", email: "", phoneNumber: "", city: "", active: false });
+    setForm({ name: "", email: "", phone: "" });
     setError(null);
     setSuccess(false);
     setFieldErrors({});
@@ -52,7 +49,7 @@ export default function AddMaintainer() {
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
     try {
-      const res = await fetch("http://localhost:5119/api/Maintainer", {
+      const res = await fetch("http://localhost:5092/api/Maintainer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)
@@ -125,39 +122,12 @@ export default function AddMaintainer() {
                     <span className="bg-gray-200 rounded p-2 flex items-center"><PhoneIcon className="h-5 w-5 text-gray-400" /></span>
                     <input
                       type="tel"
-                      className={`w-full border ${fieldErrors.phoneNumber ? 'border-red-500' : 'border-gray-300'} rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-black`}
+                      className={`w-full border ${fieldErrors.phone ? 'border-red-500' : 'border-gray-300'} rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-black`}
                       placeholder="Enter phone number"
-                      name="phoneNumber"
-                      value={form.phoneNumber}
+                      name="phone"
+                      value={form.phone}
                       onChange={handleChange}
                     />
-                  </td>
-                </tr>
-                <tr className="flex flex-col sm:table-row">
-                  <td className="py-3 px-3 font-semibold text-gray-600 bg-gray-100">Location</td>
-                  <td className="py-3 px-3 flex items-center gap-3 w-full">
-                    <span className="bg-gray-200 rounded p-2 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 text-gray-400" /></span>
-                    <input
-                      type="text"
-                      className={`w-full border ${fieldErrors.city ? 'border-red-500' : 'border-gray-300'} rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-black`}
-                      placeholder="Enter city"
-                      name="city"
-                      value={form.city}
-                      onChange={handleChange}
-                    />
-                  </td>
-                </tr>
-                <tr className="flex flex-col sm:table-row">
-                  <td className="py-3 px-3 font-semibold text-gray-600 bg-gray-100">Status</td>
-                  <td className="py-3 px-3 flex items-center gap-3 w-full">
-                    <input
-                      type="checkbox"
-                      name="active"
-                      checked={form.active}
-                      onChange={handleChange}
-                      className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <span className="text-gray-700 text-base">Active</span>
                   </td>
                 </tr>
               </tbody>

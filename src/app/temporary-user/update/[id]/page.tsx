@@ -8,7 +8,7 @@ import Swal from 'sweetalert2';
 
 // API constants
 const API_BASE = 'http://localhost:5092/api';
-const CATEGORY_ENDPOINT = `${API_BASE}/Categories`;
+const TEMPORARY_USER_ENDPOINT = `${API_BASE}/TemporaryUser`;
 
 // Helper functions
 async function safeParseJson(res: Response): Promise<any> {
@@ -45,10 +45,11 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 1000
   }
 }
 
-export default function UpdateCategory() {
+export default function UpdateTemporaryUser() {
   const router = useRouter();
   const { id } = useParams();
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,8 +65,8 @@ export default function UpdateCategory() {
 
     // Try multiple endpoint patterns
     const urlPatterns = [
-      `${CATEGORY_ENDPOINT}/${id}`,
-      `${CATEGORY_ENDPOINT}?id=${id}`,
+      `${TEMPORARY_USER_ENDPOINT}/${id}`,
+      `${TEMPORARY_USER_ENDPOINT}?id=${id}`,
     ];
 
     const fetchData = async () => {
@@ -82,10 +83,12 @@ export default function UpdateCategory() {
             const data = await safeParseJson(res);
             if (data) {
               // Try multiple property names
-              const fetchedName = data.name || data.Name || data.categoryName || '';
+              const fetchedName = data.name || data.Name || data.temporaryUserName || '';
+              const fetchedDescription = data.description || data.Description || data.desc || data.temporaryUserDescription || '';
               
               if (fetchedName) {
                 setName(fetchedName);
+                setDescription(fetchedDescription);
                 setLoading(false);
                 return;
               }
@@ -98,9 +101,9 @@ export default function UpdateCategory() {
       }
       
       // If all patterns failed
-      setError('Failed to fetch category data');
+      setError('Failed to fetch temporary user data');
       setLoading(false);
-      Swal.fire('Error', 'Failed to load category data', 'error');
+      Swal.fire('Error', 'Failed to load temporary user data', 'error');
     };
 
     fetchData();
@@ -109,8 +112,10 @@ export default function UpdateCategory() {
 
   const validate = () => {
     const errors: {[key: string]: string} = {};
-    if (!name.trim()) errors.name = "Category name is required.";
+    if (!name.trim()) errors.name = "Name is required.";
     else if (name.length < 2) errors.name = "Name must be at least 2 characters.";
+    if (!description.trim()) errors.description = "Description is required.";
+    else if (description.length < 3) errors.description = "Description must be at least 3 characters.";
     return errors;
   };
 
@@ -138,16 +143,16 @@ export default function UpdateCategory() {
 
       // Try multiple payload formats for API compatibility
       const payloads = [
-        { id, name },
-        { id, Name: name },
-        { categoryId: id, categoryName: name },
+        { id, name, description },
+        { id, Name: name, Description: description },
+        { temporaryUserId: id, temporaryUserName: name, temporaryUserDescription: description },
       ];
 
       let lastError: any = null;
       for (const payload of payloads) {
         try {
           const res = await fetchWithTimeout(
-            `${CATEGORY_ENDPOINT}/${id}`,
+            `${TEMPORARY_USER_ENDPOINT}/${id}`,
             {
               method: "PUT",
               headers: { "Content-Type": "application/json", Accept: 'application/json' },
@@ -160,13 +165,13 @@ export default function UpdateCategory() {
           if (res.ok) {
             Swal.fire({
               title: 'Success!',
-              text: 'Category updated successfully.',
+              text: 'Temporary user updated successfully.',
               icon: 'success',
               confirmButtonColor: '#3085d6',
               confirmButtonText: 'OK'
             });
             setSuccess(true);
-            setTimeout(() => router.push("/category/list"), 1200);
+            setTimeout(() => router.push("/temporary-user/list"), 1200);
             return;
           } else {
             const data = await safeParseJson(res);
@@ -179,12 +184,12 @@ export default function UpdateCategory() {
         }
       }
 
-      throw new Error(lastError || 'Failed to update category');
+      throw new Error(lastError || 'Failed to update temporary user');
     } catch (err: any) {
-      setError(err?.message || "Failed to update category");
+      setError(err?.message || "Failed to update temporary user");
       Swal.fire({
         title: 'Error',
-        text: err?.message || 'Failed to update category',
+        text: err?.message || 'Failed to update temporary user',
         icon: 'error',
         confirmButtonColor: '#d33'
       });
@@ -206,8 +211,8 @@ export default function UpdateCategory() {
       >
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-blue-500 rounded-t-xl px-6 py-4">
-          <h2 className="text-2xl font-semibold text-white mb-2 sm:mb-0">Update Category</h2>
-          <Link href="/category/list">
+          <h2 className="text-2xl font-semibold text-white mb-2 sm:mb-0">Update Temporary User</h2>
+          <Link href="/temporary-user/list">
             <button className="bg-white text-blue-700 font-semibold px-6 py-2 rounded shadow hover:bg-blue-50 transition text-base">Back to List</button>
           </Link>
         </div>
@@ -217,18 +222,33 @@ export default function UpdateCategory() {
             <table className="w-full text-base">
               <tbody>
                 <tr className="flex flex-col sm:table-row">
-                  <td className="py-3 px-3 font-semibold text-gray-600 w-full sm:w-1/4 min-w-[140px]">Category Name</td>
+                  <td className="py-3 px-3 font-semibold text-gray-600 w-full sm:w-1/4 min-w-[140px]">Name</td>
                   <td className="py-3 px-3 flex flex-col items-start gap-2 w-full">
                     <input
                       type="text"
                       className={`w-full border ${fieldErrors.name ? 'border-red-500' : 'border-gray-300'} rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-black text-base`}
-                      placeholder="Enter category name"
+                      placeholder="Enter temporary user name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       required
                       minLength={2}
                     />
                     {fieldErrors.name && <span className="text-red-500 text-sm">{fieldErrors.name}</span>}
+                  </td>
+                </tr>
+                <tr className="flex flex-col sm:table-row">
+                  <td className="py-3 px-3 font-semibold text-gray-600 w-full sm:w-1/4 min-w-[140px]">Description</td>
+                  <td className="py-3 px-3 flex flex-col items-start gap-2 w-full">
+                    <textarea
+                      className={`w-full border ${fieldErrors.description ? 'border-red-500' : 'border-gray-300'} rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-black text-base`}
+                      placeholder="Enter description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      required
+                      rows={3}
+                      minLength={3}
+                    />
+                    {fieldErrors.description && <span className="text-red-500 text-sm">{fieldErrors.description}</span>}
                   </td>
                 </tr>
               </tbody>
@@ -239,11 +259,11 @@ export default function UpdateCategory() {
           {success && (
             <div className="text-green-600 mt-3 text-base flex items-center gap-2">
               <CheckCircleIcon className="h-6 w-6 text-green-500" />
-              Category updated successfully!
+              Temporary user updated successfully!
             </div>
           )}
           {/* Buttons */}
-          <div className="flex justify-end gap-3 mt-8">
+          <div className="flex justify-center gap-3 mt-8">
             <button
               type="button"
               onClick={handleReset}
@@ -258,11 +278,12 @@ export default function UpdateCategory() {
               disabled={saving || Object.keys(fieldErrors).length > 0}
             >
               {saving && <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>}
-              {saving ? "Updating..." : "Update Category"}
+              {saving ? "Updating..." : "Update Temporary User"}
             </button>
           </div>
         </form>
       </motion.div>
     </div>
   );
-} 
+}
+

@@ -1,29 +1,27 @@
 "use client";
+
 import {
-  EnvelopeIcon,
-  MagnifyingGlassIcon,
-  MapPinIcon,
-  PhoneIcon,
-  UserIcon,
-  UserPlusIcon,
-} from '@heroicons/react/24/outline';
-import { motion } from 'framer-motion';
+    MagnifyingGlassIcon,
+    PlusCircleIcon,
+    Squares2X2Icon,
+    WrenchScrewdriverIcon,
+    XCircleIcon,
+} from "@heroicons/react/24/outline";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
 
-interface Supplier {
+interface OwnerType {
   id: string;
-  name?: string | null;
-  email: string;
-  phone: string;
-  address?: string | null;
+  name: string;
+  description?: string | null;
 }
 
-export default function SupplierList() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [error, setError] = useState<string | null>(null);
+export default function OwnerTypeList() {
+  const [ownerTypes, setOwnerTypes] = useState<OwnerType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -32,24 +30,24 @@ export default function SupplierList() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchSuppliers(page, pageSize, controller.signal);
+    fetchOwnerTypes(page, pageSize, controller.signal);
     return () => controller.abort();
   }, [page, pageSize]);
 
-  const fetchSuppliers = async (pageNum: number, size: number, signal?: AbortSignal) => {
+  const fetchOwnerTypes = async (pageNum: number, size: number, signal?: AbortSignal) => {
     setLoading(true);
     try {
-      const url = new URL("http://localhost:5092/api/Suppliers");
+      const url = new URL("http://localhost:5092/api/OwnerType");
       url.searchParams.append("page", String(pageNum));
       url.searchParams.append("pageSize", String(size));
 
       const res = await fetch(url.toString(), { signal });
-      if (!res.ok) throw new Error("Failed to fetch suppliers");
+      if (!res.ok) throw new Error("Failed to fetch owner types");
 
-      const totalPagesHeader = res.headers.get('X-Total-Pages') || res.headers.get('x-total-pages');
-      const totalCountHeader = res.headers.get('X-Total-Count') || res.headers.get('x-total-count');
-      const currentPageHeader = res.headers.get('X-Current-Page') || res.headers.get('x-current-page');
-      const pageSizeHeader = res.headers.get('X-Page-Size') || res.headers.get('x-page-size');
+      const totalPagesHeader = res.headers.get("X-Total-Pages") || res.headers.get("x-total-pages");
+      const totalCountHeader = res.headers.get("X-Total-Count") || res.headers.get("x-total-count");
+      const currentPageHeader = res.headers.get("X-Current-Page") || res.headers.get("x-current-page");
+      const pageSizeHeader = res.headers.get("X-Page-Size") || res.headers.get("x-page-size");
 
       if (totalPagesHeader) setTotalPages(Math.max(parseInt(totalPagesHeader, 10) || 1, 1));
       if (totalCountHeader) setTotalCount(Math.max(parseInt(totalCountHeader, 10) || 0, 0));
@@ -57,7 +55,7 @@ export default function SupplierList() {
       if (pageSizeHeader) setPageSize(Math.max(parseInt(pageSizeHeader, 10) || size, 1));
 
       const data = await res.json();
-      const normalized: Supplier[] = Array.isArray(data)
+      const normalized: OwnerType[] = Array.isArray(data)
         ? data
         : Array.isArray((data as any)?.items)
           ? (data as any).items
@@ -67,19 +65,17 @@ export default function SupplierList() {
               ? (data as any).result
               : [];
 
-      setSuppliers(
+      setOwnerTypes(
         normalized.map((item: any) => ({
           id: item.id,
-          name: item.name ?? item.fullName ?? item.companyName ?? null,
-          email: item.email ?? "",
-          phone: item.phone ?? item.phoneNumber ?? "",
-          address: item.address ?? item.location ?? null,
+          name: item.name ?? "Unnamed",
+          description: item.description ?? item.notes ?? null,
         })),
       );
       setError(null);
     } catch (err: any) {
       if (err?.name === "AbortError") return;
-      setError(err.message || "Failed to fetch suppliers");
+      setError(err.message || "Failed to fetch owner types");
     } finally {
       setLoading(false);
     }
@@ -87,45 +83,43 @@ export default function SupplierList() {
 
   const handleDelete = async (id: string) => {
     const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
+      title: "Delete owner type?",
+      text: "This action cannot be undone.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#2563eb",
+      confirmButtonColor: "#7c3aed",
       cancelButtonColor: "#dc2626",
-      confirmButtonText: "Yes, delete it!"
+      confirmButtonText: "Yes, delete it",
     });
 
     if (result.isConfirmed) {
       try {
-        const res = await fetch(`http://localhost:5092/api/Suppliers/${id}`, {
+        const res = await fetch(`http://localhost:5092/api/OwnerType/${id}`, {
           method: "DELETE",
         });
-        if (!res.ok) throw new Error("Failed to delete supplier");
-        Swal.fire("Deleted!", "The supplier has been deleted.", "success");
-        fetchSuppliers(page, pageSize);
+        if (!res.ok) throw new Error("Failed to delete owner type");
+        Swal.fire("Deleted!", "The owner type has been removed.", "success");
+        fetchOwnerTypes(page, pageSize);
       } catch (err: any) {
-        Swal.fire("Error", err.message || "Failed to delete supplier", "error");
+        Swal.fire("Error", err.message || "Failed to delete owner type", "error");
       }
     }
   };
 
-  const filteredSuppliers = suppliers.filter((supplier) => {
+  const filteredOwnerTypes = ownerTypes.filter((ownerType) => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return true;
     return (
-      (supplier.name ?? "").toLowerCase().includes(term) ||
-      supplier.email.toLowerCase().includes(term) ||
-      supplier.phone.toLowerCase().includes(term) ||
-      (supplier.address ?? "").toLowerCase().includes(term)
+      ownerType.name.toLowerCase().includes(term) ||
+      (ownerType.description ?? "").toLowerCase().includes(term)
     );
   });
 
-  const totalSuppliers = totalCount || suppliers.length;
-  const hasSuppliers = totalSuppliers > 0;
-  const startIndex = hasSuppliers ? (page - 1) * pageSize + 1 : 0;
-  const endIndex = hasSuppliers
-    ? Math.min(startIndex + filteredSuppliers.length - 1, totalSuppliers)
+  const totalOwnerTypes = totalCount || ownerTypes.length;
+  const hasOwnerTypes = totalOwnerTypes > 0;
+  const startIndex = hasOwnerTypes ? (page - 1) * pageSize + 1 : 0;
+  const endIndex = hasOwnerTypes
+    ? Math.min(startIndex + filteredOwnerTypes.length - 1, totalOwnerTypes)
     : 0;
 
   return (
@@ -138,16 +132,17 @@ export default function SupplierList() {
       >
         <header className="flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl shadow-indigo-950/40 backdrop-blur md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
-            <span className="inline-flex items-center rounded-full border border-indigo-500/40 bg-indigo-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-200">
-              Vendor Portal
+            <span className="inline-flex items-center gap-2 rounded-full border border-fuchsia-500/40 bg-fuchsia-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-fuchsia-200">
+              <Squares2X2Icon className="h-4 w-4" />
+              Owner Type Catalog
             </span>
-            <h1 className="text-3xl font-semibold text-white">Suppliers</h1>
-            <p className="text-sm text-slate-300">Manage vendor records, contacts, and status.</p>
+            <h1 className="text-3xl font-semibold text-white">Owner Types</h1>
+            <p className="text-sm text-slate-300">Curate asset owner classifications for reporting and onboarding workflows.</p>
           </div>
-          <Link href="/supplier/add">
+          <Link href="/owner-type/add">
             <button className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:from-violet-600 hover:via-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-slate-900">
-              <UserPlusIcon className="h-5 w-5" />
-              Add Supplier
+              <PlusCircleIcon className="h-5 w-5" />
+              Add Owner Type
             </button>
           </Link>
         </header>
@@ -175,7 +170,7 @@ export default function SupplierList() {
               <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-indigo-300" />
               <input
                 type="text"
-                placeholder="Search suppliers..."
+                placeholder="Search owner types..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -191,16 +186,10 @@ export default function SupplierList() {
               <thead className="bg-slate-900/90">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-300">
-                    Supplier
+                    Owner type
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-300">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-300">
-                    Phone
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-300">
-                    Address
+                    Description
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-300">
                     Actions
@@ -210,69 +199,53 @@ export default function SupplierList() {
               <tbody className="divide-y divide-slate-800 bg-slate-900/60">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-sm text-purple-500">
-                      Loading suppliers...
+                    <td colSpan={3} className="px-6 py-12 text-center text-sm text-purple-500">
+                      Loading owner types...
                     </td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-sm text-red-600">
+                    <td colSpan={3} className="px-6 py-12 text-center text-sm text-red-600">
                       {error}
                     </td>
                   </tr>
-                ) : filteredSuppliers.length === 0 ? (
+                ) : filteredOwnerTypes.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-sm text-purple-400">
-                      No suppliers found.
+                    <td colSpan={3} className="px-6 py-12 text-center text-sm text-purple-400">
+                      No owner types found.
                     </td>
                   </tr>
                 ) : (
-                  filteredSuppliers.map((supplier) => (
-                    <tr key={supplier.id} className="transition hover:bg-indigo-500/10">
+                  filteredOwnerTypes.map((ownerType) => (
+                    <tr key={ownerType.id} className="hover:bg-indigo-500/10">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-white shadow-sm">
-                            <UserIcon className="h-5 w-5" />
+                            <Squares2X2Icon className="h-5 w-5" />
                           </div>
                           <div>
                             <p className="text-sm font-semibold text-slate-100">
-                              {supplier.name || "Unnamed Supplier"}
-                            </p>
-                            <p className="text-xs text-slate-400">
-                              {supplier.address || "No address provided"}
+                              {ownerType.name}
                             </p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-sm text-slate-200">
-                          <EnvelopeIcon className="h-4 w-4 text-indigo-300" />
-                          {supplier.email || "N/A"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-sm text-slate-200">
-                          <PhoneIcon className="h-4 w-4 text-indigo-300" />
-                          {supplier.phone || "N/A"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-sm text-slate-200">
-                          <MapPinIcon className="h-4 w-4 text-indigo-300" />
-                          {supplier.address || "Not provided"}
-                        </div>
+                      <td className="px-6 py-4 text-sm text-slate-200">
+                        {ownerType.description || "No description provided"}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="inline-flex items-center gap-2">
-                          <Link href={`/supplier/edit/${supplier.id}`}>
-                            <button className="rounded-md border border-purple-500 px-3 py-1.5 text-xs font-semibold text-purple-600 shadow-sm transition hover:bg-purple-50">
+                          <Link href={`/owner-type/edit/${ownerType.id}`}>
+                            <button className="flex items-center gap-2 rounded-full border border-purple-500/40 bg-purple-500/10 px-4 py-2 text-xs font-semibold text-purple-200 shadow-sm transition-transform duration-150 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:ring-offset-2 focus:ring-offset-slate-900">
+                              <WrenchScrewdriverIcon className="h-4 w-4" />
                               Edit
                             </button>
                           </Link>
                           <button
-                            onClick={() => handleDelete(supplier.id)}
-                            className="rounded-md border border-pink-500 px-3 py-1.5 text-xs font-semibold text-pink-600 shadow-sm transition hover:bg-pink-50"
+                            onClick={() => handleDelete(ownerType.id)}
+                            className="flex items-center gap-2 rounded-full border border-pink-500/40 bg-pink-500/10 px-4 py-2 text-xs font-semibold text-pink-200 shadow-sm transition-transform duration-150 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-300 focus:ring-offset-2 focus:ring-offset-slate-900"
                           >
+                            <XCircleIcon className="h-4 w-4" />
                             Delete
                           </button>
                         </div>
@@ -288,9 +261,9 @@ export default function SupplierList() {
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-xl shadow-indigo-950/30">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-300">
-              {hasSuppliers
-                ? `Showing ${startIndex} to ${endIndex} of ${totalSuppliers} suppliers`
-                : "No suppliers to display"}
+              {hasOwnerTypes
+                ? `Showing ${startIndex} to ${endIndex} of ${totalOwnerTypes} owner types`
+                : "No owner types to display"}
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -355,3 +328,4 @@ export default function SupplierList() {
     </div>
   );
 }
+

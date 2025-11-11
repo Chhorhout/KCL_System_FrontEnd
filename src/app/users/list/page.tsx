@@ -1,5 +1,5 @@
 "use client";
-import { CalendarIcon, PencilSquareIcon, TrashIcon, UserIcon } from '@heroicons/react/24/solid';
+import { UserIcon } from '@heroicons/react/24/solid';
 import { motion } from 'framer-motion';
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -12,12 +12,22 @@ interface User {
   role: string;
   active?: boolean;
   createdAt?: string;
+  imageUrl?: string;
 }
 
 function formatShortDate(dateStr: string) {
   if (!dateStr) return "";
   const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US");
+  const options: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  };
+  return date.toLocaleDateString("en-US", options);
 }
 
 export default function UserList() {
@@ -28,7 +38,7 @@ export default function UserList() {
   const [searchBy, setSearchBy] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(4);
   const [totalCount, setTotalCount] = useState(0);
 
   // Fetch users with server-side pagination and search
@@ -131,82 +141,73 @@ export default function UserList() {
             </Link>
           </div>
         </div>
-        <div className="overflow-x-auto rounded-xl">
-          <table className="min-w-full text-base">
-            <thead className="sticky top-0 z-10 bg-gray-100">
-              <tr>
-                <th className="py-3 px-4 text-left font-semibold text-gray-600">User Info</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-600">Role</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-600">Status</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-600">Created</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-600">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={5} className="py-6 text-center">Loading...</td></tr>
-              ) : error ? (
-                <tr><td colSpan={5} className="py-6 text-center text-red-600">{error}</td></tr>
-              ) : users.length === 0 ? (
-                <tr><td colSpan={5} className="py-6 text-center text-gray-400">No users found.</td></tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.id} className="border-t hover:bg-blue-50 transition">
-                    {/* User Info */}
-                    <td className="py-3 px-4 flex items-center gap-2 font-medium text-blue-900">
-                      <UserIcon className="h-5 w-5 text-blue-400" />
-                      <div>
-                        <div className="font-semibold text-blue-900 text-base">{user.name}</div>
-                        <div className="flex items-center gap-1 text-gray-500 text-sm">
-                          <span className="material-icons text-base">mail</span>
-                          {user.email}
-                        </div>
-                      </div>
-                    </td>
-                    {/* Role */}
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center gap-1 bg-cyan-200 text-cyan-800 px-2 py-1 rounded text-xs font-semibold">
-                        <UserIcon className="h-4 w-4" /> {user.role}
-                      </span>
-                    </td>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {loading ? (
+            <div className="col-span-full text-center py-10">Loading...</div>
+          ) : error ? (
+            <div className="col-span-full text-center text-red-600 py-10">{error}</div>
+          ) : users.length === 0 ? (
+            <div className="col-span-full text-center text-gray-400 py-10">No users found.</div>
+          ) : (
+            users.map((user, idx) => (
+              <motion.div
+                key={user.id}
+                className="bg-white rounded-xl shadow flex flex-col items-center gap-4 border hover:shadow-lg transition p-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05, type: 'spring', stiffness: 100, damping: 20 }}
+              >
+                {/* User Image */}
+                <div className="flex-shrink-0 flex items-center justify-center h-24 w-24 bg-gray-100 rounded-full border border-gray-200">
+                  {user.imageUrl ? (
+                    <img src={user.imageUrl} alt={user.name} className="h-20 w-20 object-cover rounded-full" />
+                  ) : (
+                    <UserIcon className="h-12 w-12 text-blue-400" />
+                  )}
+                </div>
+                {/* User Details */}
+                <div className="flex-1 flex flex-col items-center text-center w-full">
+                  <div className="font-bold text-lg text-blue-900 truncate w-full">{user.name}</div>
+                  <div className="text-sm text-gray-700 truncate w-full">{user.email}</div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    <span className="inline-flex items-center gap-1 bg-cyan-100 text-cyan-800 px-2 py-0.5 rounded text-xs font-semibold">
+                      <UserIcon className="h-3 w-3" /> {user.role}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center gap-2 mt-2 w-full">
                     {/* Status */}
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold
-                        ${user.active === true ? "bg-green-100 text-green-800" :
-                          user.active === false ? "bg-red-100 text-red-800" :
-                          "bg-gray-100 text-gray-800"}`}>
-                        {user.active === true ? "Active" : user.active === false ? "Inactive" : "Unknown"}
-                      </span>
-                    </td>
-                    {/* Created */}
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-800`}>
-                        <CalendarIcon className="h-4 w-4" />
-                        {formatShortDate(user.createdAt || "")}
-                      </span>
-                    </td>
-                    {/* Actions */}
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <Link href={`/users/update/${user.id}`}>
-                          <button className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded" title="Edit">
-                            <PencilSquareIcon className="h-5 w-5" />
-                          </button>
-                        </Link>
-                        <button
-                          className="bg-red-500 hover:bg-red-600 text-white p-2 rounded"
-                          title="Delete"
-                          onClick={() => handleDelete(user.id)}
-                        >
-                          <TrashIcon className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold
+                      ${user.active === true ? "bg-green-100 text-green-800" :
+                        user.active === false ? "bg-red-100 text-red-800" :
+                        "bg-gray-100 text-gray-800"}`}>
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: user.active === true ? '#22c55e' : user.active === false ? '#ef4444' : '#9ca3af' }}></span>
+                      {user.active === true ? "Active" : user.active === false ? "Inactive" : "Unknown"}
+                    </span>
+                    {/* Created Date */}
+                    <span className="text-gray-500 text-xs flex items-center gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Created at {formatShortDate(user.createdAt || "")}
+                    </span>
+                  </div>
+                  {/* Actions */}
+                  <div className="flex justify-center gap-3 mt-4 w-full">
+                    <Link href={`/users/update/${user.id}`}>
+                      <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-semibold">Edit</button>
+                    </Link>
+                    <button
+                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm font-semibold"
+                      title="Delete"
+                      onClick={() => handleDelete(user.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))
+          )}
         </div>
         {/* Pagination */}
         {totalPages > 1 && (

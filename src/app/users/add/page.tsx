@@ -3,7 +3,7 @@ import { EnvelopeIcon, KeyIcon, UserGroupIcon, UserIcon } from '@heroicons/react
 import { motion } from 'framer-motion';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export default function AddUser() {
   const router = useRouter();
@@ -12,11 +12,17 @@ export default function AddUser() {
     email: "",
     password: "",
     role: "",
-    active: false
+    active: false,
+    imageUrl: ""
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
+  const [image, setImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageUrlInput, setImageUrlInput] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validate = () => {
     const errors: {[key: string]: string} = {};
@@ -38,10 +44,51 @@ export default function AddUser() {
   };
 
   const handleReset = () => {
-    setForm({ name: "", email: "", password: "", role: "", active: false });
+    setForm({ name: "", email: "", password: "", role: "", active: false, imageUrl: "" });
     setError(null);
     setSuccess(false);
     setFieldErrors({});
+    setImage(null);
+    setImagePreview(null);
+    setImageUrlInput("");
+  };
+
+  const handleImageUpload = async (file: File) => {
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("http://localhost:5092/api/image", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Image upload failed");
+      const data = await res.json();
+      setImageUrlInput(data.fileUrl);
+      setImagePreview(data.fileUrl);
+      setForm(prev => ({ ...prev, imageUrl: data.fileUrl }));
+    } catch (err) {
+      setError("Image upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      setImage(file);
+      handleImageUpload(file);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setImage(file);
+      handleImageUpload(file);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,10 +99,13 @@ export default function AddUser() {
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
     try {
-      const res = await fetch("http://localhost:5119/api/users", {
+      const res = await fetch("http://localhost:5092/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          imageUrl: imageUrlInput,
+        })
       });
       if (!res.ok) throw new Error("Failed to add user");
       setSuccess(true);
@@ -153,6 +203,33 @@ export default function AddUser() {
                       className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <span className="text-gray-700 text-base">Active</span>
+                  </td>
+                </tr>
+                <tr className="flex flex-col sm:table-row">
+                  <td className="py-3 px-3 font-semibold text-gray-600 bg-gray-100">Profile Image</td>
+                  <td className="py-3 px-3 w-full">
+                    <div
+                      onDrop={handleDrop}
+                      onDragOver={e => e.preventDefault()}
+                      className="border-2 border-dashed border-gray-300 rounded p-4 text-center cursor-pointer mb-4"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {uploading ? (
+                        <span className="text-gray-500">Uploading...</span>
+                      ) : imagePreview ? (
+                        <img src={imagePreview} alt="Preview" className="mx-auto h-24 object-contain rounded" />
+                      ) : (
+                        <span className="text-gray-500">Drag & drop an image here, or click to select</span>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </div>
+                    {fieldErrors.imageUrl && <span className="text-red-500 text-sm">{fieldErrors.imageUrl}</span>}
                   </td>
                 </tr>
               </tbody>

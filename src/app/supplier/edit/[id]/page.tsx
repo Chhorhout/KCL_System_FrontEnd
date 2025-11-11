@@ -1,9 +1,11 @@
 "use client";
-import { EnvelopeIcon, PhoneIcon, UserIcon } from '@heroicons/react/24/outline';
+import { EnvelopeIcon, MapPinIcon, PhoneIcon, UserIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+
+const API_URL = "http://localhost:5092/api/Suppliers";
 
 export default function EditSupplier() {
   const router = useRouter();
@@ -11,8 +13,8 @@ export default function EditSupplier() {
   const [form, setForm] = useState({
     name: "",
     email: "",
-    phoneNumber: "",
-    active: false
+    phone: "",
+    address: ""
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -22,14 +24,14 @@ export default function EditSupplier() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    fetch(`http://localhost:5119/api/Supplier/${id}`)
+    fetch(`${API_URL}/${id}`)
       .then(res => res.json())
       .then(data => {
         setForm({
           name: data.name || "",
           email: data.email || "",
-          phoneNumber: data.phoneNumber || "",
-          active: !!data.active
+          phone: data.phone || data.phoneNumber || "",
+          address: data.address || data.location || ""
         });
         setLoading(false);
       })
@@ -44,17 +46,14 @@ export default function EditSupplier() {
     if (!form.name.trim()) errors.name = "Supplier name is required.";
     if (!form.email.trim()) errors.email = "Email is required.";
     else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) errors.email = "Invalid email format.";
-    if (!form.phoneNumber.trim()) errors.phoneNumber = "Phone number is required.";
+    if (!form.phone.trim()) errors.phone = "Phone number is required.";
+    if (!form.address.trim()) errors.address = "Address is required.";
     return errors;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    if (type === "checkbox") {
-      setForm(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
-    } else {
-      setForm(prev => ({ ...prev, [name]: value }));
-    }
+    setForm(prev => ({ ...prev, [name]: value }));
   };
 
   const handleReset = () => {
@@ -63,14 +62,14 @@ export default function EditSupplier() {
     setError(null);
     setSuccess(false);
     setFieldErrors({});
-    fetch(`http://localhost:5119/api/Supplier/${id}`)
+    fetch(`${API_URL}/${id}`)
       .then(res => res.json())
       .then(data => {
         setForm({
           name: data.name || "",
           email: data.email || "",
-          phoneNumber: data.phoneNumber || "",
-          active: !!data.active
+          phone: data.phone || data.phoneNumber || "",
+          address: data.address || data.location || ""
         });
         setLoading(false);
       });
@@ -84,7 +83,7 @@ export default function EditSupplier() {
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
     try {
-      const res = await fetch(`http://localhost:5119/api/Supplier/${id}`, {
+      const res = await fetch(`${API_URL}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)
@@ -97,107 +96,168 @@ export default function EditSupplier() {
     }
   };
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center text-slate-200">
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/70 px-6 py-4 shadow-xl shadow-indigo-900/40">
+          Loading supplier details…
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-[80vh] flex justify-center items-start bg-[#f7f9fb] p-3 sm:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-10 text-slate-100">
       <motion.div
-        initial={{ opacity: 0, y: 40 }}
+        initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: "spring", stiffness: 100, damping: 20 }}
-        className="w-full max-w-6xl bg-white rounded-xl shadow-lg"
+        transition={{ type: "spring", stiffness: 110, damping: 20 }}
+        className="mx-auto flex w-full max-w-5xl flex-col gap-6"
       >
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-[#5a6ee5] rounded-t-xl px-6 py-4">
-          <h2 className="text-2xl font-semibold text-white mb-2 sm:mb-0">Update Supplier</h2>
-          <Link href="/supplier/list">
-            <button className="bg-white text-[#5a6ee5] font-semibold px-6 py-2 rounded shadow hover:bg-blue-50 transition text-base">Back to List</button>
-          </Link>
-        </div>
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-8" autoComplete="off">
-          <div className="overflow-x-auto">
-            <table className="w-full text-base">
-              <tbody>
-                <tr className="flex flex-col sm:table-row">
-                  <td className="py-3 px-3 font-semibold text-gray-600 bg-gray-100 w-full sm:w-1/4 min-w-[180px]">Supplier Name</td>
-                  <td className="py-3 px-3 flex items-center gap-3 w-full">
-                    <span className="bg-gray-200 rounded p-2 flex items-center"><UserIcon className="h-5 w-5 text-gray-400" /></span>
-                    <input
-                      type="text"
-                      className={`w-full border ${fieldErrors.name ? 'border-red-500' : 'border-gray-300'} rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-black`}
-                      placeholder="Enter supplier name"
-                      name="name"
-                      value={form.name}
-                      onChange={handleChange}
-                    />
-                  </td>
-                </tr>
-                <tr className="flex flex-col sm:table-row">
-                  <td className="py-3 px-3 font-semibold text-gray-600 bg-gray-100">Email Address</td>
-                  <td className="py-3 px-3 flex items-center gap-3 w-full">
-                    <span className="bg-gray-200 rounded p-2 flex items-center"><EnvelopeIcon className="h-5 w-5 text-gray-400" /></span>
-                    <input
-                      type="email"
-                      className={`w-full border ${fieldErrors.email ? 'border-red-500' : 'border-gray-300'} rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-black`}
-                      placeholder="Enter email"
-                      name="email"
-                      value={form.email}
-                      onChange={handleChange}
-                    />
-                  </td>
-                </tr>
-                <tr className="flex flex-col sm:table-row">
-                  <td className="py-3 px-3 font-semibold text-gray-600 bg-gray-100">Phone Number</td>
-                  <td className="py-3 px-3 flex items-center gap-3 w-full">
-                    <span className="bg-gray-200 rounded p-2 flex items-center"><PhoneIcon className="h-5 w-5 text-gray-400" /></span>
-                    <input
-                      type="tel"
-                      className={`w-full border ${fieldErrors.phoneNumber ? 'border-red-500' : 'border-gray-300'} rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-black`}
-                      placeholder="Enter phone number"
-                      name="phoneNumber"
-                      value={form.phoneNumber}
-                      onChange={handleChange}
-                    />
-                  </td>
-                </tr>
-                <tr className="flex flex-col sm:table-row">
-                  <td className="py-3 px-3 font-semibold text-gray-600 bg-gray-100">Status</td>
-                  <td className="py-3 px-3 flex items-center gap-3 w-full">
-                    <input
-                      type="checkbox"
-                      name="active"
-                      checked={form.active}
-                      onChange={handleChange}
-                      className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <span className="text-gray-700 text-base">Active</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <header className="flex flex-col gap-4 rounded-3xl border border-slate-800 bg-gradient-to-br from-indigo-700/40 via-indigo-500/20 to-transparent p-6 shadow-xl shadow-indigo-900/40 backdrop-blur">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-indigo-200/80">Supplier Studio</p>
+              <h1 className="mt-2 text-3xl font-semibold text-white">Update Supplier</h1>
+              <p className="mt-1 text-sm text-slate-300">Refine contact details to keep purchasing, payments, and logistics aligned.</p>
+            </div>
+            <Link href="/supplier/list">
+              <button className="inline-flex items-center gap-2 rounded-full border border-indigo-400/40 bg-indigo-500/20 px-4 py-2 text-sm font-semibold text-indigo-100 transition hover:bg-indigo-500/30 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:ring-offset-2 focus:ring-offset-slate-950">
+                Back to list
+              </button>
+            </Link>
           </div>
-          {/* Error/Success */}
-          {error && <div className="text-red-600 mt-3 text-base">{error}</div>}
-          {success && <div className="text-green-600 mt-3 text-base">Supplier updated successfully!</div>}
-          {/* Buttons */}
-          <div className="flex justify-end gap-3 mt-8">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="bg-gray-400 hover:bg-gray-500 text-white font-semibold px-7 py-2 rounded transition text-base"
-            >
-              Reset
-            </button>
-            <button
-              type="submit"
-              className="bg-green-500 hover:bg-green-600 text-white font-semibold px-7 py-2 rounded transition text-base"
-            >
-              Update Supplier
-            </button>
-          </div>
-        </form>
+        </header>
+
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-indigo-900/30 backdrop-blur">
+          <form onSubmit={handleSubmit} autoComplete="off" className="space-y-6">
+            <div className="grid gap-5 md:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="name" className="flex items-center gap-2 text-sm font-semibold text-slate-200">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300">
+                    <UserIcon className="h-4 w-4" />
+                  </span>
+                  Supplier name
+                </label>
+                <input
+                  id="name"
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Acme Industrial Supplies"
+                  className={`w-full rounded-xl border bg-slate-950/60 px-4 py-3 text-sm text-white shadow-inner transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                    fieldErrors.name ? 'border-red-500 focus:ring-red-400' : 'border-slate-700 focus:border-indigo-400'
+                  }`}
+                />
+                <p className="text-xs text-slate-500">This name appears in purchase orders, analytics, and reporting dashboards.</p>
+                {fieldErrors.name && <p className="text-xs text-red-400">{fieldErrors.name}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="email" className="flex items-center gap-2 text-sm font-semibold text-slate-200">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300">
+                    <EnvelopeIcon className="h-4 w-4" />
+                  </span>
+                  Contact email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="operations@acmeindustrial.com"
+                  className={`w-full rounded-xl border bg-slate-950/60 px-4 py-3 text-sm text-white shadow-inner transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                    fieldErrors.email ? 'border-red-500 focus:ring-red-400' : 'border-slate-700 focus:border-indigo-400'
+                  }`}
+                />
+                <p className="text-xs text-slate-500">Use a monitored inbox to receive orders, remittance notices, and alerts.</p>
+                {fieldErrors.email && <p className="text-xs text-red-400">{fieldErrors.email}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="phone" className="flex items-center gap-2 text-sm font-semibold text-slate-200">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300">
+                    <PhoneIcon className="h-4 w-4" />
+                  </span>
+                  Phone number
+                </label>
+                <input
+                  id="phone"
+                  name="phone"
+                  value={form.phone}
+                  onChange={handleChange}
+                  placeholder="+1 555 123 4567"
+                  className={`w-full rounded-xl border bg-slate-950/60 px-4 py-3 text-sm text-white shadow-inner transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                    fieldErrors.phone ? 'border-red-500 focus:ring-red-400' : 'border-slate-700 focus:border-indigo-400'
+                  }`}
+                />
+                <p className="text-xs text-slate-500">Ideal for escalation points or direct procurement contacts.</p>
+                {fieldErrors.phone && <p className="text-xs text-red-400">{fieldErrors.phone}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="address" className="flex items-center gap-2 text-sm font-semibold text-slate-200">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300">
+                    <MapPinIcon className="h-4 w-4" />
+                  </span>
+                  Address
+                </label>
+                <input
+                  id="address"
+                  name="address"
+                  value={form.address}
+                  onChange={handleChange}
+                  placeholder="742 Evergreen Terrace, Springfield"
+                  className={`w-full rounded-xl border bg-slate-950/60 px-4 py-3 text-sm text-white shadow-inner transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                    fieldErrors.address ? 'border-red-500 focus:ring-red-400' : 'border-slate-700 focus:border-indigo-400'
+                  }`}
+                />
+                <p className="text-xs text-slate-500">Used for shipping logistics, service dispatch, and taxation records.</p>
+                {fieldErrors.address && <p className="text-xs text-red-400">{fieldErrors.address}</p>}
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                {error}
+              </div>
+            )}
+            {success && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200"
+              >
+                Supplier updated successfully! Redirecting to directory…
+              </motion.div>
+            )}
+
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={handleReset}
+                className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-slate-800/70 focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2 focus:ring-offset-slate-950"
+              >
+                Reset 
+              </button>
+              <div className="flex gap-3">
+                <Link href="/supplier/list">
+                  <button className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-slate-800/70 focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2 focus:ring-offset-slate-950">
+                    Cancel
+                  </button>
+                </Link>
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-900/40 transition hover:from-violet-600 hover:via-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+                >
+                  Save changes
+                </button>
+              </div>
+            </div>
+          </form>
+        </section>
       </motion.div>
     </div>
   );
-} 
+}

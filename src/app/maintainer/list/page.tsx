@@ -10,9 +10,7 @@ interface Maintainer {
   id: string;
   name: string;
   email: string;
-  phoneNumber: string;
-  city: string;
-  active: boolean;
+  phone: string;
 }
 
 export default function MaintainerList() {
@@ -25,30 +23,55 @@ export default function MaintainerList() {
   const [pageSize, setPageSize] = useState(5);
   const [totalCount, setTotalCount] = useState(0);
 
-  const fetchMaintainers = (pageNum = 1, searchTerm = "") => {
+  const fetchMaintainers = async (pageNum = 1, searchTerm = "") => {
     setLoading(true);
-    const url = new URL("http://localhost:5119/api/Maintainer");
-    url.searchParams.append("page", pageNum.toString());
-    if (searchTerm) url.searchParams.append("searchTerm", searchTerm);
-    fetch(url.toString())
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Failed to fetch maintainers");
-        const totalPagesHeader = res.headers.get('X-Total-Pages');
-        const currentPageHeader = res.headers.get('X-Current-Page');
-        const pageSizeHeader = res.headers.get('X-Page-Size');
-        const totalCountHeader = res.headers.get('X-Total-Count');
-        setTotalPages(totalPagesHeader ? parseInt(totalPagesHeader) : 1);
-        setPage(currentPageHeader ? parseInt(currentPageHeader) : pageNum);
-        setPageSize(pageSizeHeader ? parseInt(pageSizeHeader) : 5);
-        setTotalCount(totalCountHeader ? parseInt(totalCountHeader) : 0);
-        const data = await res.json();
+    setError(null);
+    
+    try {
+      const url = new URL("http://localhost:5092/api/Maintainer");
+      url.searchParams.append("page", pageNum.toString());
+      url.searchParams.append("limit", "10");
+      if (searchTerm) {
+        url.searchParams.append("searchTerm", searchTerm);
+      }
+      
+      const response = await fetch(url.toString());
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch maintainers: ${response.status}`);
+      }
+      
+      // Get pagination headers
+      const totalPagesHeader = response.headers.get('X-Total-Pages');
+      const currentPageHeader = response.headers.get('X-Current-Page');
+      const pageSizeHeader = response.headers.get('X-Page-Size');
+      const totalCountHeader = response.headers.get('X-Total-Count');
+      
+      // Update pagination state
+      setTotalPages(totalPagesHeader ? parseInt(totalPagesHeader) : 1);
+      setPage(currentPageHeader ? parseInt(currentPageHeader) : pageNum);
+      setPageSize(pageSizeHeader ? parseInt(pageSizeHeader) : 10);
+      setTotalCount(totalCountHeader ? parseInt(totalCountHeader) : 0);
+      
+      // Parse and set data
+      const data = await response.json();
+      console.log('Fetched maintainer data:', data); // Debug log
+      
+      // Ensure data is an array
+      if (Array.isArray(data)) {
         setMaintainers(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
+      } else {
+        console.error('Expected array but got:', data);
+        setMaintainers([]);
+      }
+      
+    } catch (err: any) {
+      console.error('Error fetching maintainers:', err);
+      setError(err.message || "Failed to fetch maintainers");
+      setMaintainers([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -69,13 +92,26 @@ export default function MaintainerList() {
 
     if (result.isConfirmed) {
       try {
-        const res = await fetch(`http://localhost:5119/api/Maintainer/${id}`, {
+        const response = await fetch(`http://localhost:5092/api/Maintainer/${id}`, {
           method: "DELETE",
         });
-        if (!res.ok) throw new Error("Failed to delete maintainer");
+        
+        if (!response.ok) {
+          throw new Error(`Failed to delete maintainer: ${response.status}`);
+        }
+        
         Swal.fire("Deleted!", "The maintainer has been deleted.", "success");
-        fetchMaintainers(page, searchTerm);
+        
+        // Refresh the current page or go to previous page if current page becomes empty
+        const currentMaintainerCount = maintainers.length;
+        if (currentMaintainerCount === 1 && page > 1) {
+          setPage(page - 1);
+        } else {
+          fetchMaintainers(page, searchTerm);
+        }
+        
       } catch (err: any) {
+        console.error('Error deleting maintainer:', err);
         Swal.fire("Error", err.message || "Failed to delete maintainer", "error");
       }
     }
@@ -116,8 +152,6 @@ export default function MaintainerList() {
                 <th className="py-3 px-4 text-left font-semibold text-gray-600">Maintainer Info</th>
                 <th className="py-3 px-4 text-left font-semibold text-gray-600">Email</th>
                 <th className="py-3 px-4 text-left font-semibold text-gray-600">Phone</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-600">Location</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-600">Status</th>
                 <th className="py-3 px-4 text-left font-semibold text-gray-600">Actions</th>
               </tr>
             </thead>
@@ -136,6 +170,7 @@ export default function MaintainerList() {
                       <UserIcon className="h-5 w-5 text-blue-400" />
                       <div>
                         <div className="font-semibold text-blue-900 text-base">{maintainer.name}</div>
+                        <div className="text-xs text-gray-500">ID: {maintainer.id}</div>
                       </div>
                     </td>
                     {/* Email */}
@@ -147,22 +182,7 @@ export default function MaintainerList() {
                     {/* Phone */}
                     <td className="py-3 px-4">
                       <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-800">
-                        {maintainer.phoneNumber}
-                      </span>
-                    </td>
-                    {/* Location */}
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-800">
-                        {maintainer.city}
-                      </span>
-                    </td>
-                    {/* Status */}
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold
-                        ${maintainer.active === true ? "bg-green-100 text-green-800" :
-                          maintainer.active === false ? "bg-red-100 text-red-800" :
-                          "bg-gray-100 text-gray-800"}`}>
-                        {maintainer.active === true ? "Active" : maintainer.active === false ? "Inactive" : "Unknown"}
+                        {maintainer.phone}
                       </span>
                     </td>
                     {/* Actions */}

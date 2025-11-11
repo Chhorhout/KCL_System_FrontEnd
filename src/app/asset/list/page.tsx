@@ -42,7 +42,7 @@ export default function AssetList() {
   // Fetch assets with server-side pagination and search
   const fetchAssets = (pageNum = 1) => {
     setLoading(true);
-    const url = new URL("http://localhost:5119/api/assets");
+    const url = new URL('http://localhost:5119/api/assets');
     url.searchParams.append("page", pageNum.toString());
     // Removed searchTerm and searchBy from the URL
     fetch(url.toString())
@@ -70,6 +70,29 @@ export default function AssetList() {
     fetchAssets(page);
     // eslint-disable-next-line
   }, [page]);
+
+  // Check for expiring warranties
+  useEffect(() => {
+    const checkExpiringWarranties = () => {
+      assets.forEach(asset => {
+        if (asset.haveWarranty && asset.warrantyEndDate) {
+          const daysLeft = Math.ceil((new Date(asset.warrantyEndDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          if (daysLeft <= 1 && daysLeft > 0) {
+            Swal.fire({
+              title: 'Warranty Expiring Soon!',
+              text: `The warranty for asset "${asset.name}" (SN: ${asset.serialNumber}) will expire in ${daysLeft} day${daysLeft === 1 ? '' : 's'}!`,
+              icon: 'warning',
+              confirmButtonColor: '#3085d6',
+            });
+          }
+        }
+      });
+    };
+
+    if (!loading && assets.length > 0) {
+      checkExpiringWarranties();
+    }
+  }, [assets, loading]);
 
   // Client-side filtering
   const filteredAssets = assets.filter(asset => {
@@ -223,7 +246,9 @@ export default function AssetList() {
                       (() => {
                         const daysLeft = Math.ceil((new Date(asset.warrantyEndDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                         return daysLeft > 0 ? (
-                          <span className="text-green-600 font-semibold text-base">{daysLeft} days left in warranty</span>
+                          <span className={`font-semibold text-base ${daysLeft <= 1 ? 'text-red-600' : 'text-green-600'}`}>
+                            {daysLeft} day{daysLeft === 1 ? '' : 's'} left in warranty
+                          </span>
                         ) : (
                           <span className="text-red-600 font-semibold text-base">Expired on {formatShortDate(asset.warrantyEndDate)}</span>
                         );
