@@ -6,6 +6,7 @@ import {
   ChevronLeftIcon,
   ClipboardDocumentListIcon,
   ClockIcon,
+  Cog6ToothIcon,
   CogIcon,
   DocumentArrowUpIcon,
   DocumentTextIcon,
@@ -323,6 +324,36 @@ export default function Sidebar() {
             INTERFACE
           </div>
         )}
+
+        {/* Profile Settings */}
+        <Link
+          href="/profile"
+          className={`flex items-start px-3 py-2.5 rounded-md font-medium transition-all relative text-sm min-w-0 mt-2 ${
+            pathname === '/profile'
+              ? 'bg-slate-700/70 text-white font-semibold shadow-md'
+              : 'hover:bg-slate-700/40 text-slate-200'
+          }`}
+          aria-current={pathname === '/profile' ? 'page' : undefined}
+          aria-label="Profile Settings"
+          title={collapsed && !hoverExpanded ? 'Profile Settings' : undefined}
+        >
+          {/* Active indicator bar - green line on left */}
+          {pathname === '/profile' && (
+            <div className="absolute left-0 top-0 h-full w-1 bg-green-500 rounded-r" />
+          )}
+          {/* Icon */}
+          <Cog6ToothIcon
+            className={`h-5 w-5 flex-shrink-0 z-10 mt-0.5 ${(collapsed && !hoverExpanded) ? 'mx-auto' : 'mr-3'} ${
+              pathname === '/profile' ? 'text-white' : 'text-slate-300'
+            }`}
+          />
+          {/* Link text */}
+          {!(collapsed && !hoverExpanded) && (
+            <span className="z-10 whitespace-normal leading-snug min-w-0 flex-1 text-sm break-words">
+              Profile Settings
+            </span>
+          )}
+        </Link>
 
         {/* Collapse/Expand button */}
       </nav>

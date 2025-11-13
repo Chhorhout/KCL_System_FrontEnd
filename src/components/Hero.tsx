@@ -9,9 +9,13 @@ import {
   ChartBarIcon,
   CheckCircleIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  PencilSquareIcon,
+  PlusIcon,
+  XCircleIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
-import { BuildingOffice2Icon, ComputerDesktopIcon, Squares2X2Icon, UsersIcon } from '@heroicons/react/24/solid';
+import { BuildingOffice2Icon, ComputerDesktopIcon, Squares2X2Icon, UserCircleIcon, UsersIcon } from '@heroicons/react/24/solid';
 import {
   ArcElement,
   BarElement,
@@ -28,6 +32,7 @@ import { motion, useInView } from 'framer-motion';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
+import Swal from 'sweetalert2';
 
 ChartJS.register(
   CategoryScale,
@@ -68,6 +73,15 @@ interface ChartData {
     month: string;
     count: number;
   }>;
+}
+
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  createdAt: string;
 }
 
 // Calendar Widget Component
@@ -235,6 +249,7 @@ export default function Hero() {
   const [counts, setCounts] = useState({
     supplier: 0,
     ownerType: 0,
+    owner: 0,
     invoice: 0,
     asset: 0,
     category: 0,
@@ -253,8 +268,38 @@ export default function Hero() {
   });
   const [recentAssets, setRecentAssets] = useState<Asset[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [eventForm, setEventForm] = useState({
+    title: '',
+    description: '',
+    date: '',
+    time: ''
+  });
   const containerRef = useRef(null);
   const isInView = useInView(containerRef, { once: true });
+
+  // Load events from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedEvents = localStorage.getItem('dashboard-events');
+      if (savedEvents) {
+        setEvents(JSON.parse(savedEvents));
+      }
+    } catch (error) {
+      console.error('[Hero] Error loading events:', error);
+    }
+  }, []);
+
+  // Save events to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('dashboard-events', JSON.stringify(events));
+    } catch (error) {
+      console.error('[Hero] Error saving events:', error);
+    }
+  }, [events]);
 
   // Debug: Log counts changes
   useEffect(() => {
@@ -409,6 +454,7 @@ export default function Hero() {
         
         const tasks = [
           fetchWithFallback('http://localhost:5092/api/OwnerType', 'http://localhost:5092/api/OwnerTypes'),
+          fetchWithFallback('http://localhost:5092/api/Owner', 'http://localhost:5092/api/Owners'),
           fetchWithFallback('http://localhost:5092/api/Invoice', 'http://localhost:5092/api/Invoices'),
           fetchWithFallback('http://localhost:5092/api/Suppliers', 'http://localhost:5092/api/Supplier'),
           fetchWithFallback('http://localhost:5092/api/assets', 'http://localhost:5092/api/assets'),
@@ -443,14 +489,15 @@ export default function Hero() {
         };
         
         const ownerTypesRes = safe(0);
-        const invoicesRes = safe(1);
-        const suppliersRes = safe(2);
-        const assetsRes = safe(3);
-        const categoriesRes = safe(4);
-        const employeesRes = safe(5);
-        const locationsRes = safe(6);
-        const departmentsRes = safe(7);
-        const temporaryUsersRes = safe(8);
+        const ownersRes = safe(1);
+        const invoicesRes = safe(2);
+        const suppliersRes = safe(3);
+        const assetsRes = safe(4);
+        const categoriesRes = safe(5);
+        const employeesRes = safe(6);
+        const locationsRes = safe(7);
+        const departmentsRes = safe(8);
+        const temporaryUsersRes = safe(9);
 
         // Debug logging - Enhanced
         console.log('=== [Hero] API Fetch Results ===');
@@ -458,6 +505,11 @@ export default function Hero() {
           total: ownerTypesRes.total,
           listLength: ownerTypesRes.list?.length,
           sample: ownerTypesRes.list?.[0],
+        });
+        console.log('Owners:', {
+          total: ownersRes.total,
+          listLength: ownersRes.list?.length,
+          sample: ownersRes.list?.[0],
         });
         console.log('Invoices:', {
           total: invoicesRes.total,
@@ -551,6 +603,7 @@ export default function Hero() {
         const finalCounts = {
           supplier: suppliersRes.total || (suppliersRes.list?.length ?? 0),
           ownerType: ownerTypesRes.total || (ownerTypesRes.list?.length ?? 0),
+          owner: ownersRes.total || (ownersRes.list?.length ?? 0),
           invoice: invoicesRes.total || (invoicesRes.list?.length ?? 0),
           asset: assetsRes.total || (assets?.length ?? 0),
           category: categoriesRes.total || (categoriesData?.length ?? 0),
@@ -662,6 +715,15 @@ export default function Hero() {
     icon: Squares2X2Icon,
     border: 'border-fuchsia-400',
     iconBg: 'bg-fuchsia-100 text-fuchsia-500',
+  },
+  {
+    label: 'OWNERS',
+    value: counts.owner,
+    link: '/owner/list',
+    linkLabel: 'View all owners →',
+    icon: UserCircleIcon,
+    border: 'border-cyan-400',
+    iconBg: 'bg-cyan-100 text-cyan-500',
   },
   {
     label: 'INVOICES',
@@ -778,7 +840,7 @@ export default function Hero() {
   };
 
   const LoadingSkeleton = () => (
-    <div className="flex-1 min-w-[260px] max-w-xs bg-gray-800 rounded-xl shadow-md p-6 border-t-4 border-gray-700">
+    <div className="bg-gray-800 rounded-xl shadow-md p-6 border-t-4 border-gray-700">
       <div className="w-12 h-12 rounded-full bg-gray-700 animate-pulse mb-4" />
       <div className="h-4 w-20 bg-gray-700 rounded animate-pulse mb-2" />
       <div className="h-8 w-16 bg-gray-700 rounded animate-pulse mb-4" />
@@ -865,7 +927,7 @@ export default function Hero() {
         variants={containerVariants}
         initial="hidden"
         animate={isInView ? "visible" : "hidden"}
-        className="flex flex-wrap gap-3 mb-3"
+        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-3"
       >
         {isLoading ? (
           Array(8).fill(0).map((_, index) => (
@@ -877,14 +939,14 @@ export default function Hero() {
               key={card.label}
               variants={cardVariants}
               whileHover="hover"
-              className={`flex-1 min-w-[200px] max-w-xs bg-gray-800 rounded-xl shadow-md p-3 border-t-4 ${card.border} hover:shadow-lg transition-shadow duration-300`}
+              className={`bg-gray-800 rounded-xl shadow-md p-3 border-t-4 ${card.border} hover:shadow-lg transition-shadow duration-300`}
             >
               <motion.div 
-                className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${card.iconBg}`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${card.iconBg}`}
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
               >
-                <card.icon className="w-5 h-5" />
+                <card.icon className="h-6 w-6" />
               </motion.div>
               <div className="text-xs font-semibold text-gray-400 mb-1">{card.label}</div>
               <motion.div 
@@ -999,7 +1061,7 @@ export default function Hero() {
       {/* Recent Assets and Quick Actions */}
       {!isLoading && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          {/* Recent Assets */}
+          {/* Events Management */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1008,38 +1070,95 @@ export default function Hero() {
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                Recent Assets
+                <CalendarIcon className="h-5 w-5 text-indigo-400" />
+                Events
               </h2>
-              <Link href="/asset/list" className="text-sm text-blue-400 hover:text-blue-300 hover:underline">
-                View All →
-              </Link>
+              <button
+                onClick={() => {
+                  setEditingEvent(null);
+                  setEventForm({ title: '', description: '', date: '', time: '' });
+                  setShowEventModal(true);
+                }}
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
+              >
+                <PlusIcon className="h-5 w-5" />
+                Add Event
+              </button>
             </div>
-            <div className="space-y-3">
-              {recentAssets.length > 0 ? (
-                recentAssets.map((asset, index) => (
-                  <div
-                    key={asset.id || index}
-                    className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-white">{asset.name || 'Unnamed Asset'}</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {asset.location || 'No location'} • {asset.status || 'Unknown'}
-                      </p>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {events.length > 0 ? (
+                events
+                  .sort((a, b) => {
+                    const dateA = new Date(`${a.date}T${a.time || '00:00'}`).getTime();
+                    const dateB = new Date(`${b.date}T${b.time || '00:00'}`).getTime();
+                    return dateA - dateB;
+                  })
+                  .map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex items-start justify-between p-3 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors group"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{event.title}</p>
+                        {event.description && (
+                          <p className="text-xs text-gray-400 mt-1 line-clamp-2">{event.description}</p>
+                        )}
+                        <p className="text-xs text-indigo-400 mt-1">
+                          {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {event.time && ` • ${event.time}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => {
+                            setEditingEvent(event);
+                            setEventForm({
+                              title: event.title,
+                              description: event.description,
+                              date: event.date,
+                              time: event.time
+                            });
+                            setShowEventModal(true);
+                          }}
+                          className="p-1.5 text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 rounded transition-colors"
+                          title="Edit event"
+                        >
+                          <PencilSquareIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const result = await Swal.fire({
+                              title: 'Delete event?',
+                              text: `Are you sure you want to delete "${event.title}"?`,
+                              icon: 'warning',
+                              showCancelButton: true,
+                              confirmButtonColor: '#dc2626',
+                              cancelButtonColor: '#6b7280',
+                              confirmButtonText: 'Yes, delete it!',
+                              cancelButtonText: 'Cancel'
+                            });
+                            
+                            if (result.isConfirmed) {
+                              setEvents(events.filter(e => e.id !== event.id));
+                              Swal.fire({
+                                title: 'Deleted!',
+                                text: 'The event has been deleted.',
+                                icon: 'success',
+                                timer: 1500,
+                                showConfirmButton: false
+                              });
+                            }
+                          }}
+                          className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded transition-colors"
+                          title="Delete event"
+                        >
+                          <XCircleIcon className="h-5 w-5" />
+                        </button>
+                      </div>
                     </div>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      (asset.status || '').toLowerCase() === 'active'
-                        ? 'bg-green-900/50 text-green-300 border border-green-700'
-                        : (asset.status || '').toLowerCase() === 'maintenance'
-                        ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-700'
-                        : 'bg-gray-700 text-gray-300 border border-gray-600'
-                    }`}>
-                      {asset.status || 'N/A'}
-                    </div>
-                  </div>
-                ))
+                  ))
               ) : (
-                <p className="text-sm text-gray-400 text-center py-4">No recent assets found</p>
+                <p className="text-sm text-gray-400 text-center py-4">No events yet. Click "Add Event" to create one.</p>
               )}
             </div>
           </motion.div>
@@ -1123,6 +1242,132 @@ export default function Hero() {
       >
         Welcome to KCL System 2025
       </motion.footer>
+
+      {/* Event Modal */}
+      {showEventModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-md"
+          >
+            <div className="flex items-center justify-between p-6 border-b border-gray-700">
+              <h3 className="text-xl font-semibold text-white">
+                {editingEvent ? 'Edit Event' : 'Add New Event'}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowEventModal(false);
+                  setEditingEvent(null);
+                  setEventForm({ title: '', description: '', date: '', time: '' });
+                }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!eventForm.title.trim() || !eventForm.date.trim()) {
+                  alert('Please fill in title and date');
+                  return;
+                }
+                if (editingEvent) {
+                  // Update existing event
+                  setEvents(events.map(e => 
+                    e.id === editingEvent.id 
+                      ? { ...e, ...eventForm }
+                      : e
+                  ));
+                } else {
+                  // Add new event
+                  const newEvent: Event = {
+                    id: Date.now().toString(),
+                    ...eventForm,
+                    createdAt: new Date().toISOString()
+                  };
+                  setEvents([...events, newEvent]);
+                }
+                setShowEventModal(false);
+                setEditingEvent(null);
+                setEventForm({ title: '', description: '', date: '', time: '' });
+              }}
+              className="p-6 space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Event Title *
+                </label>
+                <input
+                  type="text"
+                  value={eventForm.title}
+                  onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Enter event title"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={eventForm.description}
+                  onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  placeholder="Enter event description (optional)"
+                  rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={eventForm.date}
+                    onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Time
+                  </label>
+                  <input
+                    type="time"
+                    value={eventForm.time}
+                    onChange={(e) => setEventForm({ ...eventForm, time: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEventModal(false);
+                    setEditingEvent(null);
+                    setEventForm({ title: '', description: '', date: '', time: '' });
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  {editingEvent ? 'Update Event' : 'Add Event'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 } 

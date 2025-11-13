@@ -1,5 +1,4 @@
-import Navbar from "@/components/Navbar";
-import Sidebar from "@/components/Sidebar";
+import AuthWrapper from "@/components/AuthWrapper";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import React from 'react';
@@ -19,18 +18,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="flex h-screen overflow-hidden">
-          <Sidebar />
-          <div 
-            className="flex-1 flex flex-col bg-[#f7f9fb] min-h-screen overflow-y-auto" 
-            style={{ paddingLeft: 'var(--sidebar-width, 260px)' }}
-          >
-            <Navbar />
-            <main className="flex-1 overflow-y-auto">
-              {children}
-            </main>
-          </div>
-        </div>
+        <AuthWrapper>
+          {children}
+        </AuthWrapper>
       </body>
     </html>
   );

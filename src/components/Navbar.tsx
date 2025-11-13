@@ -6,8 +6,7 @@ import {
   ChevronDownIcon,
   Cog6ToothIcon,
   MagnifyingGlassIcon,
-  UserCircleIcon,
-  XMarkIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
@@ -361,18 +360,21 @@ export default function Navbar() {
                     <button
                       className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-gray-700/50 hover:text-white transition-colors flex items-center gap-3"
                     >
-                      <UserCircleIcon className="h-5 w-5" />
-                      <span>Profile Settings</span>
-                    </button>
-                    <button
-                      className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-gray-700/50 hover:text-white transition-colors flex items-center gap-3"
-                    >
                       <Cog6ToothIcon className="h-5 w-5" />
                       <span>Preferences</span>
                     </button>
                   </div>
                   <div className="border-t border-gray-700 py-2">
                     <button
+                      onClick={() => {
+                        // Clear any auth tokens/session data
+                        if (typeof window !== 'undefined') {
+                          localStorage.removeItem('authToken');
+                          localStorage.removeItem('user');
+                        }
+                        // Redirect to login page
+                        router.push('/login');
+                      }}
                       className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors flex items-center gap-3"
                     >
                       <ArrowRightOnRectangleIcon className="h-5 w-5" />
